@@ -1,2 +1,29 @@
-/* some style */
+body {
+  width: 960px;
+  margin: 0 auto;
+}
 
+.container {
+  height: 814px;
+  width: 816px;
+  border: solid 1px grey;
+}
+
+.container .cell {
+  margin: 1px 1px 0 1px;
+  height: 200px;
+  width: 200px;
+  float: left;
+  border: solid 1px grey;
+  position: relative;
+  text-align: center;
+}
+
+.container .cell .number {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  margin-top: -0.5em;
+  font-size: 2em;
+}

@@ -7,12 +7,30 @@
 #_ (println "Edits to this text should show up in your developer console.")
 
 
-(def world (atom {:text "Hi, Gem Puzzle!"}))
+(def init-state (shuffle (range 1 16)))
+
+(def world (atom init-state))
 
 (q/defcomponent Root
   [data]
   (html
-     [:h1 (:text data)]))
+     [:div {:className "container"}
+      (for [i data] (Cell i))]))
+
+(q/defcomponent Number
+  [number]
+  (html
+     [:div {:className "number"
+            :id (str "number-" number)}
+            number]))
+
+(q/defcomponent Cell
+  "one cell of the puzzle"
+  [number]
+  (html
+     [:div {:className "cell"
+            :id (str "cell-" number)}
+      (Number number)]))
 
 (defn render [data]
   (q/render (Root data)
