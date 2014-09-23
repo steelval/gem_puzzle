@@ -27,3 +27,7 @@ body {
   margin-top: -0.5em;
   font-size: 2em;
 }
+
+.container .cell.selected {
+  background-color: #00CED1;
+}
