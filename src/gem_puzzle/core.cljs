@@ -11,12 +11,13 @@
 (def KEYS-ASWD {65 :left 87 :up 68 :right 83 :down})
 
 (def key-move {:up -4 :down 4 :left -1 :right 1})
+;; forbidden moves of numbers by indexes
+(def forbidden-moves {3 4 4 3 7 8 8 7 11 12 12 11})
 
 ;; randome 16 numbers to build random puzzle. 16-is an empty cell
 (def cells-state (atom (shuffle (range 1 17))))
 
 ;; index of selected object in cells-state. on start it's 0
-;;TODO: rename to cur-index?
 (def sel-cell-index (atom 0))
 
 #_ (def game (atom cells-state))
@@ -58,15 +59,15 @@
 
 (defn move-element [new-index]
   "move number elements from one cell to another"
-  (if (= 16 (get @cells-state new-index))
-    (let [move-numb (get @cells-state @sel-cell-index)
-          replace-numb (get @cells-state new-index)]
-    (let [move-what (.getElementById js/document (str "number-" move-numb))
-           replace-what (.getElementById js/document (str "number-" replace-numb))]
-          (.appendChild (.getElementById js/document (str "cell-" (inc new-index))) move-what)
-          (.appendChild (.getElementById js/document (str "cell-" (inc @sel-cell-index))) replace-what))
-    (reset! cells-state (replace (hash-map move-numb replace-numb replace-numb move-numb) @cells-state))
-    (move-selector new-index))))
+  (let [move-numb (get @cells-state @sel-cell-index)
+        replace-numb (get @cells-state new-index)]
+    (if (and (= 16 replace-numb) (not= (get forbidden-moves @sel-cell-index) new-index))
+      (let [move-what (.getElementById js/document (str "number-" move-numb))
+             replace-what (.getElementById js/document (str "number-" replace-numb))]
+            (.appendChild (.getElementById js/document (str "cell-" (inc new-index))) move-what)
+            (.appendChild (.getElementById js/document (str "cell-" (inc @sel-cell-index))) replace-what)
+        (reset! cells-state (replace (hash-map move-numb replace-numb replace-numb move-numb) @cells-state))
+        (move-selector new-index)))))
 
 
 (defn render []
