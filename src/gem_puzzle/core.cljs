@@ -16,6 +16,7 @@
 
 ;; randome 16 numbers to build random puzzle. 16-is an empty cell
 (def cells-state (atom (shuffle (range 1 17))))
+;; for winning test (def cells-state (atom (vec (replace {15 16 16 15} (range 1 17)))))
 
 ;; index of selected object in cells-state. on start it's 0
 (def sel-cell-index (atom 0))
@@ -84,8 +85,10 @@
               (move-selector new-index))))))))
         (make-selected 0))
 
-#_ (add-watch game ::render
-           (fn [_ _ _ data] (render)))
+(add-watch cells-state ::render
+           (fn [_ _ _ new-state] (if (= new-state (range 1 17))
+                                   (js/console.log "you're winner")
+                                   )))
 
 #_ (fw/watch-and-reload :jsload-callback
                      (fn []
