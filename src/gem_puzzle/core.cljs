@@ -8,23 +8,25 @@
 
 ;; key codes for arrow keys
 (def KEYS {37 :left 38 :up 39 :right 40 :down})
+(def KEYS-ASWD {65 :left 87 :up 68 :right 83 :down})
 
 (def key-move {:up -4 :down 4 :left -1 :right 1})
 
-;; randome 15 numbers to build random puzzle
-(def cells-state (shuffle (range 1 16)))
+;; randome 16 numbers to build random puzzle. 16-is an empty cell
+(def cells-state (atom (shuffle (range 1 17))))
 
 ;; index of selected object in cells-state. on start it's 0
+;;TODO: rename to cur-index?
 (def sel-cell-index (atom 0))
 
-(def game (atom cells-state))
+#_ (def game (atom cells-state))
 
 (q/defcomponent Number
   [number]
   (html
      [:div {:className "number"
             :id (str "number-" number)}
-            number]))
+            (if (not= 16 number) number)]))
 
 (q/defcomponent Cell
   "one cell of the puzzle"
@@ -32,49 +34,63 @@
   (html
      [:div {:className "cell"
             :id (str "cell-" number)}
-      (Number number)]))
+      (Number (get @cells-state (dec number)))]))
 
 (q/defcomponent Root
-  [data]
+  []
   (html
      [:div {:className "container"}
-      (for [i data] (Cell i))]))
-
-(defn set-selected[]
-  (let [object (first (.getElementsByClassName js/document "cell"))]
-       (.className js/object "zzzz")))
+      (for [i (range 1 17)] (Cell i))]))
 
 (defn make-selected [index]
   "function to make specific cell selected. depends from index in 'cells-state'"
-  (let [x (.getElementById js/document (str "cell-" (get cells-state index)))]
+  (let [x (.getElementById js/document (str "cell-" (inc index)))]
       (set! (.-className x) (str (.-className x) " selected"))))
 
-(defn move-selector [way]
-  "function with makes new cell selected and old one not. depends from way on keys(left\right etc.)"
-  (let [new-way (+ (key-move way) @sel-cell-index)]
-        (if (and (> new-way -1) (< new-way 15))
-          ((let [slctd (.getElementById js/document (str "cell-" (get cells-state @sel-cell-index)))]
-                (set! (.-className slctd) "cell"))
-           (reset! sel-cell-index new-way)
-           (make-selected @sel-cell-index)))))
 
-(defn render [data]
-  (q/render (Root data)
+(defn move-selector [new-index]
+  "function with makes new cell selected and old one not. depends from way on keys(left\right etc.)"
+  (let [slctd (.getElementById js/document (str "cell-" (inc @sel-cell-index)))]
+     (set! (.-className slctd) "cell"))
+   (reset! sel-cell-index new-index)
+   (make-selected @sel-cell-index))
+
+
+(defn move-element [new-index]
+  "move number elements from one cell to another"
+  (if (= 16 (get @cells-state new-index))
+    (let [move-numb (get @cells-state @sel-cell-index)
+          replace-numb (get @cells-state new-index)]
+    (let [move-what (.getElementById js/document (str "number-" move-numb))
+           replace-what (.getElementById js/document (str "number-" replace-numb))]
+          (.appendChild (.getElementById js/document (str "cell-" (inc new-index))) move-what)
+          (.appendChild (.getElementById js/document (str "cell-" (inc @sel-cell-index))) replace-what))
+    (reset! cells-state (replace (hash-map move-numb replace-numb replace-numb move-numb) @cells-state))
+    (move-selector new-index))))
+
+
+(defn render []
+  (q/render (Root)
             (.getElementById js/document "main-area"))
   (.addEventListener js/window "keydown"
     (fn [e]
-      (if-let [key (KEYS (aget e "keyCode"))]
-        (move-selector key))))
+      (let [key-code (aget e "keyCode")]
+      (if-let [key ((merge KEYS KEYS-ASWD) key-code)]
+        (let [new-index (+ (key-move key) @sel-cell-index)]
+          (if (and (> new-index -1) (< new-index 16))
+            (if (contains? KEYS-ASWD key-code)
+              (move-element new-index)
+              (move-selector new-index))))))))
         (make-selected 0))
 
-(add-watch game ::render
-           (fn [_ _ _ data] (render data)))
+#_ (add-watch game ::render
+           (fn [_ _ _ data] (render)))
 
-(fw/watch-and-reload :jsload-callback
+#_ (fw/watch-and-reload :jsload-callback
                      (fn []
                        (swap! game update-in [:tmp-dev] not)))
 
-(defonce *render-puzzle* (render @game))
+(defonce *render-puzzle* (render))
 
 
 
