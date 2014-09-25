@@ -3,98 +3,95 @@
             [sablono.core :as html :refer-macros [html]]
             [quiescent :as q :include-macros true]))
 
-#_ (enable-console-print!)
-#_ (println "Edits to this text should show up in your developer console.")
+; size of a puzzle
+(def size 4)
 
 ;; key codes for arrow keys
 (def KEYS {37 :left 38 :up 39 :right 40 :down})
-(def KEYS-ASWD {65 :left 87 :up 68 :right 83 :down})
 
-(def key-move {:up -4 :down 4 :left -1 :right 1})
-;; forbidden moves of numbers by indexes
-(def forbidden-moves {3 4 4 3 7 8 8 7 11 12 12 11})
+;; delta of moves depending from way
+(def key-move {:up (- 0 size) :down (+ 0 size) :left -1 :right 1})
 
-;; randome 16 numbers to build random puzzle. 16-is an empty cell
-(def cells-state (atom (shuffle (range 1 17))))
-;; for winning test (def cells-state (atom (vec (replace {15 16 16 15} (range 1 17)))))
 
-;; index of selected object in cells-state. on start it's 0
-(def sel-cell-index (atom 0))
+;; numbers-state - random 16 numbers to build a random puzzle. 16-is an empty cell
+;;   (for winning test (def numbers-state (atom (vec (replace {15 16 16 15} (range 1 17))))))
+;; selected-cell - index of selected object in numbers-state. on start it's 0
+;; size - size of the puzzle
+(def cells-info {:numbers-state (shuffle (range 1 (inc (* size size))))
+                 :size size})
 
-#_ (def game (atom cells-state))
+(defonce world (atom cells-info))
 
 (q/defcomponent Number
-  [number]
+  [number size]
   (html
-     [:div {:className "number"
-            :id (str "number-" number)}
-            (if (not= 16 number) number)]))
+     [:div {:className "number"}
+       (if (not= (* size size) number) number)]))
 
 (q/defcomponent Cell
   "one cell of the puzzle"
-  [number]
+  [{:keys [value selected size]}]
   (html
-     [:div {:className "cell"
-            :id (str "cell-" number)}
-      (Number (get @cells-state (dec number)))]))
+     [:div {:className (str "cell" (if selected " selected" ""))}
+      (Number value size)]))
 
 (q/defcomponent Root
-  []
+  [{:keys [numbers-state size]}]
   (html
      [:div {:className "container"}
-      (for [i (range 1 17)] (Cell i))]))
-
-(defn make-selected [index]
-  "function to make specific cell selected. depends from index in 'cells-state'"
-  (let [x (.getElementById js/document (str "cell-" (inc index)))]
-      (set! (.-className x) (str (.-className x) " selected"))))
+      (for [cell numbers-state]
+        (Cell {:value cell :selected (= cell (* size size)) :size size}))]))
 
 
 (defn move-selector [new-index]
   "function with makes new cell selected and old one not. depends from way on keys(left\right etc.)"
   (let [slctd (.getElementById js/document (str "cell-" (inc @sel-cell-index)))]
      (set! (.-className slctd) "cell"))
-   (reset! sel-cell-index new-index)
-   (make-selected @sel-cell-index))
+   (reset! sel-cell-index new-index))
+
 
 
 (defn move-element [new-index]
   "move number elements from one cell to another"
-  (let [move-numb (get @cells-state @sel-cell-index)
-        replace-numb (get @cells-state new-index)]
+  (let [move-numb (get @numbers-state @sel-cell-index)
+        replace-numb (get @numbers-state new-index)]
     (if (and (= 16 replace-numb) (not= (get forbidden-moves @sel-cell-index) new-index))
-      (let [move-what (.getElementById js/document (str "number-" move-numb))
-             replace-what (.getElementById js/document (str "number-" replace-numb))]
-            (.appendChild (.getElementById js/document (str "cell-" (inc new-index))) move-what)
-            (.appendChild (.getElementById js/document (str "cell-" (inc @sel-cell-index))) replace-what)
-        (reset! cells-state (replace (hash-map move-numb replace-numb replace-numb move-numb) @cells-state))
-        (move-selector new-index)))))
+        ((reset! numbers-state (replace (hash-map move-numb replace-numb replace-numb move-numb) @numbers-state))
+        (move-selector new-index)
+         (js/console.log @numbers-state)))))
 
 
-(defn render []
-  (q/render (Root)
-            (.getElementById js/document "main-area"))
+(defn request-render [data]
+    (.requestAnimationFrame js/window
+      (fn []
+        (js/console.log "render")
+        (q/render (Root data) (.getElementById js/document "main-area")))
+  ))
+
+
+(defn start []
+  (request-render @world)
   (.addEventListener js/window "keydown"
     (fn [e]
-      (let [key-code (aget e "keyCode")]
-      (if-let [key ((merge KEYS KEYS-ASWD) key-code)]
-        (let [new-index (+ (key-move key) @sel-cell-index)]
-          (if (and (> new-index -1) (< new-index 16))
-            (if (contains? KEYS-ASWD key-code)
-              (move-element new-index)
-              (move-selector new-index))))))))
-        (make-selected 0))
+      (let [key-code (aget e "keyCode")
+            size (@world :size)
+            empiness-index (.indexOf (@world :numbers-state) (* (@world :size) (@world :size)))]
+      (if-let [key (KEYS key-code)]
+        ;(if (> (- empiness-index (key-move key)) 0)
+          (js/console.log empiness-index))))))
+  ;)
 
-(add-watch cells-state ::render
-           (fn [_ _ _ new-state] (if (= new-state (range 1 17))
+(add-watch world ::render
+           (fn [_ _ _ new-world] (if (= new-world (range 1 17))
                                    (js/console.log "you're winner")
+                                   (request-render new-world)
                                    )))
 
 #_ (fw/watch-and-reload :jsload-callback
                      (fn []
                        (swap! game update-in [:tmp-dev] not)))
 
-(defonce *render-puzzle* (render))
+(defonce *render-puzzle* (start))
 
 
 
