@@ -4,15 +4,15 @@ body {
 }
 
 .container {
-  height: 814px;
-  width: 816px;
+  height: 250px;
+  width: 250px;
   border: solid 1px grey;
 }
 
 .container .cell {
   margin: 1px 1px 0 1px;
-  height: 200px;
-  width: 200px;
+  height: 50px;
+  width: 50px;
   float: left;
   border: solid 1px grey;
   position: relative;
@@ -25,7 +25,7 @@ body {
   left: 0;
   right: 0;
   margin-top: -0.5em;
-  font-size: 2em;
+  font-size:1em;
 }
 
 .container .cell.selected {

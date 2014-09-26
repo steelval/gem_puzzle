@@ -1,5 +1,5 @@
 (ns gem_puzzle.core
-    (:require [figwheel.client :as fw]
+  (:require [figwheel.client :as fw]
             [sablono.core :as html :refer-macros [html]]
             [quiescent :as q :include-macros true]))
 
@@ -18,80 +18,67 @@
 ;; selected-cell - index of selected object in numbers-state. on start it's 0
 ;; size - size of the puzzle
 (def cells-info {:numbers-state (shuffle (range 1 (inc (* size size))))
-                 :size size})
+                 :size size
+                 :sqr-size (* size size)})
 
 (defonce world (atom cells-info))
 
 (q/defcomponent Number
-  [number size]
+  [number sqr-size]
   (html
-     [:div {:className "number"}
-       (if (not= (* size size) number) number)]))
+   [:div {:className "number"}
+    (if (not= sqr-size number) number)]))
 
 (q/defcomponent Cell
   "one cell of the puzzle"
-  [{:keys [value selected size]}]
+  [{:keys [value sqr-size]}]
   (html
-     [:div {:className (str "cell" (if selected " selected" ""))}
-      (Number value size)]))
+   [:div {:className (str "cell" (if (= value sqr-size) " selected" ""))}
+    (Number value sqr-size)]))
 
 (q/defcomponent Root
-  [{:keys [numbers-state size]}]
-  (html
-     [:div {:className "container"}
-      (for [cell numbers-state]
-        (Cell {:value cell :selected (= cell (* size size)) :size size}))]))
+  [{:keys [numbers-state sqr-size]}]
+  (q/wrapper
+   (html
+    [:div {:className "container"}
+     (for [cell numbers-state]
+       (Cell {:value cell :sqr-size sqr-size}))])
+   :onMount
+   (fn []
+     (.addEventListener
+      js/window "keydown"
+      (fn [e]
+        (when-let [key (KEYS (aget e "keyCode"))]
+          (.preventDefault e)
+          (perform-move key))
+        )))))
 
-
-(defn move-selector [new-index]
-  "function with makes new cell selected and old one not. depends from way on keys(left\right etc.)"
-  (let [slctd (.getElementById js/document (str "cell-" (inc @sel-cell-index)))]
-     (set! (.-className slctd) "cell"))
-   (reset! sel-cell-index new-index))
-
-
-
-(defn move-element [new-index]
-  "move number elements from one cell to another"
-  (let [move-numb (get @numbers-state @sel-cell-index)
-        replace-numb (get @numbers-state new-index)]
-    (if (and (= 16 replace-numb) (not= (get forbidden-moves @sel-cell-index) new-index))
-        ((reset! numbers-state (replace (hash-map move-numb replace-numb replace-numb move-numb) @numbers-state))
-        (move-selector new-index)
-         (js/console.log @numbers-state)))))
+(defn perform-move [key]
+  (swap! world
+         (fn [{:keys [numbers-state sqr-size] :as data}]
+           (let [idx (.indexOf (to-array numbers-state) sqr-size)
+                 new-idx (+ idx (key-move key))
+                 k (get numbers-state idx)
+                 v (get numbers-state new-idx)]
+             (if (and v)
+               (assoc data :numbers-state (replace {k v v k} numbers-state))
+               data)))))
 
 
 (defn request-render [data]
-    (.requestAnimationFrame js/window
-      (fn []
-        (js/console.log "render")
-        (q/render (Root data) (.getElementById js/document "main-area")))
-  ))
-
-
-(defn start []
-  (request-render @world)
-  (.addEventListener js/window "keydown"
-    (fn [e]
-      (let [key-code (aget e "keyCode")
-            size (@world :size)
-            empiness-index (.indexOf (@world :numbers-state) (* (@world :size) (@world :size)))]
-      (if-let [key (KEYS key-code)]
-        ;(if (> (- empiness-index (key-move key)) 0)
-          (js/console.log empiness-index))))))
-  ;)
+  (.requestAnimationFrame
+   js/window
+   (fn []
+     (js/console.log "render")
+     (q/render (Root data) (.getElementById js/document "main-area")))))
 
 (add-watch world ::render
-           (fn [_ _ _ new-world] (if (= new-world (range 1 17))
-                                   (js/console.log "you're winner")
-                                   (request-render new-world)
-                                   )))
+           (fn [_ _ _ new-world]
+             (js/console.log (pr-str new-world))
+             (request-render new-world)
+                                   ))
 
-#_ (fw/watch-and-reload :jsload-callback
-                     (fn []
-                       (swap! game update-in [:tmp-dev] not)))
-
-(defonce *render-puzzle* (start))
+(defonce *render-puzzle* (request-render @world)))
 
 
 
